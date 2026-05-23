@@ -508,8 +508,14 @@ async def cb_confirm_booking(callback: CallbackQuery, state: FSMContext):
     await state.clear()
 
     if not result or "error" in result:
-        err = result.get("error", "Ошибка при создании записи.") if result else "Сервер недоступен."
-        await callback.message.edit_text(f"❌ {err}\n\nПопробуйте ещё раз — /book")
+        raw_err = (result.get("error") if result else None) or ""
+        logger.warning("Booking failed. payload=%s result=%s", payload, result)
+        # Show the real server error if available, otherwise a generic message
+        if raw_err and str(raw_err).strip():
+            err_text = str(raw_err).strip()
+        else:
+            err_text = "Не удалось создать запись. Попробуйте ещё раз."
+        await callback.message.edit_text(f"❌ {err_text}\n\n/book — начать заново")
         await callback.answer()
         return
 

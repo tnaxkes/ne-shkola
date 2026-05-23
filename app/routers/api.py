@@ -1,3 +1,4 @@
+import asyncio
 from datetime import date
 from typing import Optional
 
@@ -123,8 +124,7 @@ def booking_me(telegram_user_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/bookings")
-def create_booking_endpoint(payload: BookingCreate, db: Session = Depends(get_db)):
-    import asyncio
+async def create_booking_endpoint(payload: BookingCreate, db: Session = Depends(get_db)):
     try:
         booking = create_booking(
             db=db,
@@ -140,26 +140,58 @@ def create_booking_endpoint(payload: BookingCreate, db: Session = Depends(get_db
     except BookingError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # notify admin in background (fire-and-forget)
-    try:
-        from app.services.telegram import notify_admin_new_booking
-        import asyncio as _asyncio
-        loop = _asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(notify_admin_new_booking(booking))
-        else:
-            loop.run_until_complete(notify_admin_new_booking(booking))
-    except Exception:
-        pass
+    # Capture all ORM data as plain values NOW (session closes after response)
+    booking_id       = booking.id
+    service_name     = booking.service.name
+    master_name      = booking.master.name if booking.master else None
+    desired_date_iso = booking.desired_date.isoformat()
+    desired_time_str = booking.desired_time.strftime("%H:%M")
+    status_val       = booking.status.value
+
+    # Notification data (plain strings — safe to use after session closes)
+    notif = {
+        "client_name":  booking.client.name,
+        "client_phone": booking.client.phone,
+        "service_name": service_name,
+        "master_name":  master_name or "Не важно",
+        "desired_date": booking.desired_date,
+        "desired_time": booking.desired_time,
+        "comment":      booking.comment,
+    }
+
+    # Fire admin notification in background — doesn't block the response
+    asyncio.create_task(_send_admin_notification(notif))
 
     return {
-        "id": booking.id,
-        "service_name": booking.service.name,
-        "master_name": booking.master.name if booking.master else None,
-        "desired_date": booking.desired_date.isoformat(),
-        "desired_time": booking.desired_time.strftime("%H:%M"),
-        "status": booking.status.value,
+        "id":           booking_id,
+        "service_name": service_name,
+        "master_name":  master_name,
+        "desired_date": desired_date_iso,
+        "desired_time": desired_time_str,
+        "status":       status_val,
     }
+
+
+async def _send_admin_notification(data: dict) -> None:
+    """Send admin Telegram notification from plain data dict (no ORM session needed)."""
+    if not settings.admin_telegram_chat_id or not settings.telegram_bot_token:
+        return
+    try:
+        from app.services.telegram import _send
+        from app.timeutils import format_date_ru, format_time
+        text = (
+            f"<b>Новая заявка</b>\n"
+            f"Клиент: {data['client_name']}\n"
+            f"Телефон: {data['client_phone']}\n"
+            f"Программа: {data['service_name']}\n"
+            f"Преподаватель: {data['master_name']}\n"
+            f"Дата: {format_date_ru(data['desired_date'])}\n"
+            f"Время: {format_time(data['desired_time'])}\n"
+            f"Комментарий: {data['comment'] or '-'}"
+        )
+        await _send(settings.admin_telegram_chat_id, text)
+    except Exception:
+        pass
 
 
 @router.post("/bookings/{booking_id}/cancel")
