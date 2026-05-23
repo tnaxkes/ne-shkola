@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -11,16 +12,17 @@ from app.database import SessionLocal, engine
 from app.models import Base
 
 logging.basicConfig(level=getattr(logging, settings.log_level.upper(), logging.INFO))
+log = logging.getLogger(__name__)
 
-# Absolute paths work both locally and on Vercel
+# Absolute paths — work locally, on Railway, and on Vercel
 _BASE_DIR = Path(__file__).parent
 _STATIC_DIR = _BASE_DIR / "static"
 
 
-# ─── Shared bot/dp (initialised once per process) ───────────────────────────
+# ─── Shared bot/dp (webhook mode only) ──────────────────────────────────────
 
 _bot = None
-_dp = None
+_dp  = None
 
 
 def _get_bot():
@@ -49,8 +51,13 @@ def _get_dp():
 
 # ─── Lifespan ───────────────────────────────────────────────────────────────
 
+_polling_task = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _polling_task
+
     Base.metadata.create_all(bind=engine)
     if settings.seed_on_startup:
         from app.seed import seed
@@ -60,20 +67,33 @@ async def lifespan(app: FastAPI):
         finally:
             db.close()
 
-    # Webhook mode: register bot webhook on startup
-    if settings.webhook_url and settings.telegram_bot_token:
-        try:
-            bot = _get_bot()
-            _get_dp()  # ensure dp is initialised with router
-            webhook_endpoint = f"{settings.webhook_url.rstrip('/')}/webhook/telegram"
-            await bot.set_webhook(webhook_endpoint, drop_pending_updates=True)
-            logging.getLogger(__name__).info("Telegram webhook set: %s", webhook_endpoint)
-        except Exception as exc:
-            logging.getLogger(__name__).warning("Failed to set webhook: %s", exc)
+    if settings.telegram_bot_token:
+        if settings.webhook_url:
+            # ── Webhook mode (Vercel) ──────────────────────────────────────
+            try:
+                bot = _get_bot()
+                _get_dp()
+                webhook_url = f"{settings.webhook_url.rstrip('/')}/webhook/telegram"
+                await bot.set_webhook(webhook_url, drop_pending_updates=True)
+                log.info("Telegram webhook set: %s", webhook_url)
+            except Exception as exc:
+                log.warning("Failed to set webhook: %s", exc)
+        else:
+            # ── Polling mode (Railway / local) ─────────────────────────────
+            # Bot runs as a background asyncio task alongside uvicorn
+            from app.bot.telegram_bot import run_polling
+            _polling_task = asyncio.create_task(run_polling())
+            log.info("Telegram bot started in polling mode")
 
     yield
 
-    # Cleanup: close the shared bot session
+    # ── Shutdown ──────────────────────────────────────────────────────────
+    if _polling_task is not None:
+        _polling_task.cancel()
+        try:
+            await _polling_task
+        except asyncio.CancelledError:
+            pass
     if _bot is not None:
         await _bot.session.close()
 

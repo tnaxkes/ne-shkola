@@ -958,9 +958,13 @@ async def run_reminders_once():
         db.close()
 
 
-# ─── Main ─────────────────────────────────────────────────────────────────────
+# ─── run_polling — запуск из lifespan FastAPI (Railway / локально) ────────────
 
-async def main():
+async def run_polling():
+    """
+    Запускает бота в режиме polling внутри уже работающего event loop.
+    Вызывается через asyncio.create_task() из lifespan FastAPI.
+    """
     if not settings.telegram_bot_token:
         logger.error("TELEGRAM_BOT_TOKEN не задан в .env")
         return
@@ -980,11 +984,20 @@ async def main():
         BotCommand(command="about", description="О школе и контакты"),
     ])
 
-    loop = asyncio.get_event_loop()
-    loop.create_task(reminder_loop())
+    # Reminder loop работает параллельно с polling
+    asyncio.create_task(reminder_loop())
 
-    logger.info("Бот запущен")
-    await dp.start_polling(bot, skip_updates=True)
+    logger.info("Бот запущен (polling)")
+    try:
+        await dp.start_polling(bot, skip_updates=True)
+    finally:
+        await bot.session.close()
+
+
+# ─── main() — автономный запуск (python -m app.bot.telegram_bot) ──────────────
+
+async def main():
+    await run_polling()
 
 
 if __name__ == "__main__":
