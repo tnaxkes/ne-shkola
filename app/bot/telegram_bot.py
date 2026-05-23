@@ -482,17 +482,7 @@ async def booking_enter_phone(message: Message, state: FSMContext):
     if len(phone) < 7:
         await message.answer("Введите корректный номер телефона.")
         return
-    await state.update_data(phone=phone)
-    await message.answer(
-        "Если хотите, добавьте комментарий к записи одним сообщением.\nЕсли дополнений нет, просто отправьте: -"
-    )
-    await state.set_state(BookingStates.entering_comment)
-
-
-@router.message(BookingStates.entering_comment)
-async def booking_enter_comment(message: Message, state: FSMContext):
-    comment = message.text.strip() if message.text else "-"
-    await state.update_data(comment=comment)
+    await state.update_data(phone=phone, comment=None)
     fsm_data = await state.get_data()
 
     d_str = fsm_data["desired_date"]
@@ -504,17 +494,15 @@ async def booking_enter_comment(message: Message, state: FSMContext):
     master_name = fsm_data.get("master_name", "Подберём для вас")
 
     summary = (
-        f"<b>Подтверждение записи</b>\n"
-        f"Программа: {fsm_data.get('service_name', '')}\n"
-        f"Преподаватель: {master_name}\n"
-        f"Дата: {d_fmt}\n"
-        f"Время: {t_str}\n"
-        f"Имя: {fsm_data.get('name', '')}\n"
-        f"Телефон: {fsm_data.get('phone', '')}\n"
-        f"Комментарий: {comment}"
+        f"<b>Подтверждение записи</b>\n\n"
+        f"🥁 {fsm_data.get('service_name', '')}\n"
+        f"👤 {master_name}\n"
+        f"📅 {d_fmt} в {t_str}\n"
+        f"📝 {fsm_data.get('name', '')}\n"
+        f"📞 {phone}"
     )
     kb = inline_kb([
-        [("✅ Подтвердить запись", "confirm_booking"), ("❌ Отменить", "cancel_booking")]
+        [("✅ Подтвердить", "confirm_booking"), ("❌ Отменить", "cancel_booking")]
     ])
     await message.answer(summary, reply_markup=kb, parse_mode=ParseMode.HTML)
     await state.set_state(BookingStates.confirming)
