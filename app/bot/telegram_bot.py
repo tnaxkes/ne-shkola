@@ -29,7 +29,11 @@ from app.config import settings
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-API_BASE = settings.app_url
+# When embedded in uvicorn (Railway), call localhost directly to avoid external roundtrip.
+# When running standalone locally, fall back to app_url.
+import os as _os
+_port = _os.environ.get("PORT", str(settings.run_port))
+API_BASE = f"http://localhost:{_port}" if "localhost" in settings.app_url else settings.app_url
 
 # ─── Тексты ──────────────────────────────────────────────────────────────────
 
@@ -120,34 +124,44 @@ def date_keyboard(prefix: str = "date", days: int = 14) -> InlineKeyboardMarkup:
 
 # ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
+_HTTP_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
+
+
 async def api_get(path: str, params: dict = None) -> dict | list | None:
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{API_BASE}{path}", params=params or {})
-            r.raise_for_status()
-            return r.json()
-    except Exception as e:
-        logger.warning(f"API GET {path} failed: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+                r = await client.get(f"{API_BASE}{path}", params=params or {})
+                r.raise_for_status()
+                return r.json()
+        except Exception as e:
+            logger.warning(f"API GET {path} attempt {attempt+1} failed: {e}")
+            if attempt < 2:
+                await asyncio.sleep(1)
+    return None
 
 
 async def api_post(path: str, json: dict = None, params: dict = None) -> dict | None:
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(f"{API_BASE}{path}", json=json or {}, params=params or {})
-            r.raise_for_status()
-            return r.json()
-    except httpx.HTTPStatusError as e:
-        detail = ""
+    for attempt in range(3):
         try:
-            detail = e.response.json().get("detail", "")
-        except Exception:
-            pass
-        logger.warning(f"API POST {path} error: {e} — {detail}")
-        return {"error": detail or str(e)}
-    except Exception as e:
-        logger.warning(f"API POST {path} failed: {e}")
-        return {"error": str(e)}
+            async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+                r = await client.post(f"{API_BASE}{path}", json=json or {}, params=params or {})
+                r.raise_for_status()
+                return r.json()
+        except httpx.HTTPStatusError as e:
+            detail = ""
+            try:
+                raw = e.response.json().get("detail", "")
+                detail = raw if isinstance(raw, str) else str(raw)
+            except Exception:
+                pass
+            logger.warning(f"API POST {path} error: {e} — {detail}")
+            return {"error": detail or str(e)}
+        except Exception as e:
+            logger.warning(f"API POST {path} attempt {attempt+1} failed: {e}")
+            if attempt < 2:
+                await asyncio.sleep(1)
+    return {"error": "Сервер временно недоступен. Попробуйте ещё раз."}
 
 
 # ─── Вспомогательные функции ──────────────────────────────────────────────────
@@ -172,6 +186,23 @@ def booking_card(b: dict) -> str:
 # ─── Router ───────────────────────────────────────────────────────────────────
 
 router = Router()
+
+
+# ─── /cancel — сброс состояния ────────────────────────────────────────────────
+
+@router.message(Command("cancel"))
+async def cmd_cancel(message: Message, state: FSMContext):
+    await state.clear()
+    await message.answer("Действие отменено.", reply_markup=main_menu())
+
+
+# ─── Глобальный обработчик зависших callback-ов ───────────────────────────────
+
+@router.errors()
+async def global_error_handler(event, exception):
+    logger.error(f"Unhandled error: {exception}")
+    return True
+
 
 # ─── /start ───────────────────────────────────────────────────────────────────
 
@@ -491,7 +522,19 @@ async def booking_enter_comment(message: Message, state: FSMContext):
 
 @router.callback_query(BookingStates.confirming, F.data == "confirm_booking")
 async def cb_confirm_booking(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
     fsm_data = await state.get_data()
+
+    # Проверяем что FSM-данные не устарели
+    if not fsm_data.get("service_id") or not fsm_data.get("desired_date") or not fsm_data.get("desired_time"):
+        await state.clear()
+        await callback.message.answer("⚠️ Данные устарели. Начните заново — /book", reply_markup=main_menu())
+        return
+
+    try:
+        await callback.message.edit_text("⏳ Оформляем запись...")
+    except Exception:
+        pass
 
     payload = {
         "telegram_user_id": callback.from_user.id,
@@ -509,14 +552,9 @@ async def cb_confirm_booking(callback: CallbackQuery, state: FSMContext):
 
     if not result or "error" in result:
         raw_err = (result.get("error") if result else None) or ""
-        logger.warning("Booking failed. payload=%s result=%s", payload, result)
-        # Show the real server error if available, otherwise a generic message
-        if raw_err and str(raw_err).strip():
-            err_text = str(raw_err).strip()
-        else:
-            err_text = "Не удалось создать запись. Попробуйте ещё раз."
-        await callback.message.edit_text(f"❌ {err_text}\n\n/book — начать заново")
-        await callback.answer()
+        err_text = str(raw_err).strip() if raw_err else "Не удалось создать запись. Попробуйте ещё раз."
+        logger.warning("Booking failed: %s | payload: %s", raw_err, payload)
+        await callback.message.answer(f"❌ {err_text}\n\n/book — начать заново", reply_markup=main_menu())
         return
 
     d_str = result.get("desired_date", "")
@@ -526,15 +564,16 @@ async def cb_confirm_booking(callback: CallbackQuery, state: FSMContext):
         d_fmt = d_str
 
     text = (
-        f"<b>Запись оформлена</b>\n"
-        f"Дата: {d_fmt}\n"
-        f"Время: {result.get('desired_time', '')}\n"
-        f"Программа: {result.get('service_name', '')}\n\n"
-        f"Администратор при необходимости уточнит детали. Командой /visit можно открыть запись в любой момент."
+        f"✅ <b>Запись оформлена!</b>\n\n"
+        f"📅 {d_fmt} в {result.get('desired_time', '')}\n"
+        f"🥁 {result.get('service_name', '')}\n\n"
+        f"Ждём вас! Посмотреть запись — /visit"
     )
-    await callback.message.edit_text(text, parse_mode=ParseMode.HTML)
+    try:
+        await callback.message.edit_text(text, parse_mode=ParseMode.HTML)
+    except Exception:
+        await callback.message.answer(text, parse_mode=ParseMode.HTML)
     await callback.message.answer("Главное меню:", reply_markup=main_menu())
-    await callback.answer()
 
 
 @router.callback_query(F.data == "cancel_booking")
@@ -890,8 +929,7 @@ async def run_reminders_once():
     from app.database import SessionLocal
     from app.models import Booking, BookingStatus, Client, ReminderLog
     from app.services.telegram import (
-        send_campaign_21d, send_campaign_30d, send_campaign_60d,
-        send_reminder_24h, send_reminder_2h,
+        send_campaign_21d, send_campaign_30d, send_campaign_60d, send_reminder_24h,
     )
     from zoneinfo import ZoneInfo
 
@@ -917,25 +955,6 @@ async def run_reminders_once():
                     await send_reminder_24h(b)
                     db.add(ReminderLog(client_id=b.client_id, reminder_type=log_key))
                     db.commit()
-
-        # 2h reminders
-        for b in db.query(Booking).filter(
-            Booking.desired_date == now_date,
-            Booking.status == BookingStatus.confirmed,
-        ).all():
-            if b.client.telegram_user_id:
-                booking_dt = datetime.combine(b.desired_date, b.desired_time)
-                diff_hours = (booking_dt - now).total_seconds() / 3600
-                if 1.5 <= diff_hours <= 2.5:
-                    log_key = f"reminder_2h_{b.id}"
-                    already = db.query(ReminderLog).filter(
-                        ReminderLog.client_id == b.client_id,
-                        ReminderLog.reminder_type == log_key,
-                    ).first()
-                    if not already:
-                        await send_reminder_2h(b)
-                        db.add(ReminderLog(client_id=b.client_id, reminder_type=log_key))
-                        db.commit()
 
         # Return campaigns
         await _send_returning_campaigns(db, now)
@@ -967,6 +986,7 @@ async def run_polling():
         BotCommand(command="masters", description="Преподаватели"),
         BotCommand(command="visit", description="Моя запись"),
         BotCommand(command="about", description="О школе и контакты"),
+        BotCommand(command="cancel", description="Отменить текущее действие"),
     ])
 
     # Reminder loop работает параллельно с polling
