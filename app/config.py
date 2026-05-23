@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     calendar_id: str = "primary"
     google_service_account_file: str = ""
+    google_service_account_json: str = ""  # full JSON content as string, for cloud deployment
 
     enable_masters: bool = True
     workday_start: str = "10:00"

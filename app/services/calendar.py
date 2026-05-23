@@ -15,16 +15,24 @@ COLOR_MAP = {
 
 
 def _get_service():
-    if not settings.google_service_account_file:
-        return None
     try:
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
+        import json
 
-        creds = service_account.Credentials.from_service_account_file(
-            settings.google_service_account_file,
-            scopes=["https://www.googleapis.com/auth/calendar"],
-        )
+        creds = None
+        if settings.google_service_account_json:
+            info = json.loads(settings.google_service_account_json)
+            creds = service_account.Credentials.from_service_account_info(
+                info, scopes=["https://www.googleapis.com/auth/calendar"],
+            )
+        elif settings.google_service_account_file:
+            creds = service_account.Credentials.from_service_account_file(
+                settings.google_service_account_file,
+                scopes=["https://www.googleapis.com/auth/calendar"],
+            )
+        else:
+            return None
         return build("calendar", "v3", credentials=creds, cache_discovery=False)
     except Exception as e:
         logger.warning(f"Google Calendar init failed: {e}")
