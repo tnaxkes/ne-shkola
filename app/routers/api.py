@@ -125,6 +125,7 @@ def booking_me(telegram_user_id: int, db: Session = Depends(get_db)):
 
 @router.post("/bookings")
 async def create_booking_endpoint(payload: BookingCreate, db: Session = Depends(get_db)):
+    from sqlalchemy.orm import joinedload
     try:
         booking = create_booking(
             db=db,
@@ -140,35 +141,32 @@ async def create_booking_endpoint(payload: BookingCreate, db: Session = Depends(
     except BookingError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Capture all ORM data as plain values NOW (session closes after response)
-    booking_id       = booking.id
-    service_name     = booking.service.name
-    master_name      = booking.master.name if booking.master else None
-    desired_date_iso = booking.desired_date.isoformat()
-    desired_time_str = booking.desired_time.strftime("%H:%M")
-    status_val       = booking.status.value
+    # Reload with all relationships eagerly to avoid lazy-load in async context
+    booking = (
+        db.query(Booking)
+        .options(joinedload(Booking.service), joinedload(Booking.master), joinedload(Booking.client))
+        .filter(Booking.id == booking.id)
+        .first()
+    )
 
-    # Notification data (plain strings — safe to use after session closes)
     notif = {
         "client_name":  booking.client.name,
         "client_phone": booking.client.phone,
-        "service_name": service_name,
-        "master_name":  master_name or "Не важно",
+        "service_name": booking.service.name,
+        "master_name":  booking.master.name if booking.master else "не назначен",
         "desired_date": booking.desired_date,
         "desired_time": booking.desired_time,
         "comment":      booking.comment,
     }
-
-    # Fire admin notification in background — doesn't block the response
     asyncio.create_task(_send_admin_notification(notif))
 
     return {
-        "id":           booking_id,
-        "service_name": service_name,
-        "master_name":  master_name,
-        "desired_date": desired_date_iso,
-        "desired_time": desired_time_str,
-        "status":       status_val,
+        "id":           booking.id,
+        "service_name": booking.service.name,
+        "master_name":  booking.master.name if booking.master else None,
+        "desired_date": booking.desired_date.isoformat(),
+        "desired_time": booking.desired_time.strftime("%H:%M"),
+        "status":       booking.status.value,
     }
 
 

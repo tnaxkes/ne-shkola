@@ -792,17 +792,13 @@ async def review_enter_comment(message: Message, state: FSMContext):
 # ─── Reminder loop ────────────────────────────────────────────────────────────
 
 sent_reminders_24h: set[int] = set()
-sent_reminders_2h: set[int] = set()
 
 
 async def reminder_loop():
-    """Runs every 60 seconds. Sends reminders and return campaigns."""
+    """Runs every 60 seconds. Sends 24h reminders and return campaigns."""
     from app.database import SessionLocal
     from app.models import Booking, BookingStatus, Client, ReminderLog
-    from app.services.telegram import (
-        send_campaign_21d, send_campaign_30d, send_campaign_60d,
-        send_reminder_24h, send_reminder_2h,
-    )
+    from app.services.telegram import send_campaign_21d, send_campaign_30d, send_campaign_60d, send_reminder_24h
     from zoneinfo import ZoneInfo
     tz = ZoneInfo(settings.app_timezone)
 
@@ -813,29 +809,18 @@ async def reminder_loop():
                 now = datetime.now(tz).replace(tzinfo=None)
                 now_date = now.date()
 
-                # 24h reminders
+                # 24h reminders — only for bookings that are still ≥24h away
                 target_24h = now_date + timedelta(days=1)
                 bookings_24 = db.query(Booking).filter(
                     Booking.desired_date == target_24h,
                     Booking.status == BookingStatus.confirmed,
                 ).all()
                 for b in bookings_24:
-                    if b.id not in sent_reminders_24h and b.client.telegram_user_id:
+                    booking_dt = datetime.combine(b.desired_date, b.desired_time)
+                    hours_left = (booking_dt - now).total_seconds() / 3600
+                    if b.id not in sent_reminders_24h and b.client.telegram_user_id and hours_left >= 24:
                         await send_reminder_24h(b)
                         sent_reminders_24h.add(b.id)
-
-                # 2h reminders
-                bookings_2h = db.query(Booking).filter(
-                    Booking.desired_date == now_date,
-                    Booking.status == BookingStatus.confirmed,
-                ).all()
-                for b in bookings_2h:
-                    if b.id not in sent_reminders_2h and b.client.telegram_user_id:
-                        booking_dt = datetime.combine(b.desired_date, b.desired_time)
-                        diff = (booking_dt - now).total_seconds() / 3600
-                        if 1.5 <= diff <= 2.5:
-                            await send_reminder_2h(b)
-                            sent_reminders_2h.add(b.id)
 
                 # Return campaigns
                 await _send_returning_campaigns(db, now)

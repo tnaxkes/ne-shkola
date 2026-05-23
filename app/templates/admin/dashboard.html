@@ -3,7 +3,7 @@
 {% block page_title %}Дашборд{% endblock %}
 
 {% block content %}
-<!-- Stats widgets -->
+<!-- Stats -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="stat-card card h-100 border-0 shadow-sm">
@@ -67,7 +67,7 @@
   </div>
 </div>
 
-<!-- New bookings -->
+<!-- Новые заявки -->
 <div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
     <h6 class="mb-0 fw-semibold"><i class="bi bi-bell me-2 text-warning"></i>Новые заявки</h6>
@@ -78,9 +78,7 @@
     <div class="table-responsive">
       <table class="table table-hover mb-0 align-middle">
         <thead class="table-light">
-          <tr>
-            <th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th><th>Действия</th>
-          </tr>
+          <tr><th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th><th>Статус</th></tr>
         </thead>
         <tbody>
           {% for b in new_bookings %}
@@ -115,10 +113,10 @@
   </div>
 </div>
 
-<!-- Upcoming confirmed -->
-<div class="card border-0 shadow-sm">
+<!-- Подтверждённые (ближайшие) -->
+<div class="card border-0 shadow-sm mb-4">
   <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
-    <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check me-2 text-success"></i>Предстоящие занятия</h6>
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check me-2 text-success"></i>Ближайшие занятия</h6>
     <a href="/admin/bookings?filter_status=confirmed" class="btn btn-sm btn-outline-secondary">Все</a>
   </div>
   <div class="card-body p-0">
@@ -126,17 +124,41 @@
     <div class="table-responsive">
       <table class="table table-hover mb-0 align-middle">
         <thead class="table-light">
-          <tr><th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th></tr>
+          <tr><th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th><th>Статус</th></tr>
         </thead>
         <tbody>
           {% for b in upcoming %}
-          <tr>
+          <tr {% if loop.first %}class="table-success"{% endif %}>
             <td><a href="/admin/bookings/{{ b.id }}" class="text-decoration-none text-muted">#{{ b.id }}</a></td>
-            <td><a href="/admin/clients/{{ b.client.id }}" class="text-decoration-none fw-medium">{{ b.client.name }}</a></td>
+            <td>
+              <a href="/admin/clients/{{ b.client.id }}" class="text-decoration-none fw-medium">{{ b.client.name }}</a>
+              {% if loop.first %}<span class="badge bg-success ms-1">Ближайшее</span>{% endif %}
+            </td>
             <td>{{ b.service.name }}</td>
             <td>{{ b.master.name if b.master else '—' }}</td>
             <td>{{ b.desired_date | date_ru }}</td>
             <td>{{ b.desired_time.strftime('%H:%M') }}</td>
+            <td>
+              <div class="dropdown">
+                <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                  {{ b.status | booking_status_label }}
+                </button>
+                <ul class="dropdown-menu">
+                  <li>
+                    <form method="post" action="/admin/bookings/{{ b.id }}/status">
+                      <input type="hidden" name="new_status" value="completed"/>
+                      <button type="submit" class="dropdown-item text-secondary">✓ Завершить</button>
+                    </form>
+                  </li>
+                  <li>
+                    <form method="post" action="/admin/bookings/{{ b.id }}/status">
+                      <input type="hidden" name="new_status" value="cancelled"/>
+                      <button type="submit" class="dropdown-item text-danger">✕ Отменить</button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            </td>
           </tr>
           {% endfor %}
         </tbody>
@@ -147,4 +169,44 @@
     {% endif %}
   </div>
 </div>
+
+<!-- Недавно завершённые -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-check2-all me-2 text-secondary"></i>Недавно завершённые</h6>
+    <a href="/admin/bookings?filter_status=completed" class="btn btn-sm btn-outline-secondary">Все</a>
+  </div>
+  <div class="card-body p-0">
+    {% if recently_completed %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th><th>Статус</th></tr>
+        </thead>
+        <tbody>
+          {% for b in recently_completed %}
+          <tr>
+            <td><a href="/admin/bookings/{{ b.id }}" class="text-decoration-none text-muted">#{{ b.id }}</a></td>
+            <td><a href="/admin/clients/{{ b.client.id }}" class="text-decoration-none fw-medium">{{ b.client.name }}</a></td>
+            <td>{{ b.service.name }}</td>
+            <td>{{ b.master.name if b.master else '—' }}</td>
+            <td>{{ b.desired_date | date_ru }}</td>
+            <td>{{ b.desired_time.strftime('%H:%M') }}</td>
+            <td>
+              <form method="post" action="/admin/bookings/{{ b.id }}/status">
+                <input type="hidden" name="new_status" value="confirmed"/>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">↩ Вернуть</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">Завершённых занятий нет</div>
+    {% endif %}
+  </div>
+</div>
+
 {% endblock %}

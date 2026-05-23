@@ -157,6 +157,13 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         .limit(12)
         .all()
     )
+    recently_completed = (
+        db.query(Booking)
+        .filter(Booking.status == BookingStatus.completed)
+        .order_by(Booking.desired_date.desc(), Booking.desired_time.desc())
+        .limit(8)
+        .all()
+    )
 
     return templates.TemplateResponse(request, "admin/dashboard.html", {
         "salon_name": settings.salon_name,
@@ -166,6 +173,7 @@ def admin_dashboard(request: Request, db: Session = Depends(get_db)):
         "count_active": count_active,
         "new_bookings": new_bookings,
         "upcoming": upcoming,
+        "recently_completed": recently_completed,
         "today": today,
     })
 
@@ -695,3 +703,35 @@ def admin_settings(request: Request):
         "salon_name": settings.salon_name,
         "settings": settings,
     })
+
+
+@router.get("/calendar-test")
+def admin_calendar_test(request: Request):
+    redir = check_auth(request)
+    if redir:
+        return redir
+    from app.services.calendar import _get_service
+    svc = _get_service()
+    if not svc:
+        if not settings.google_service_account_file and not settings.google_service_account_json:
+            return {"ok": False, "error": "Не настроен GOOGLE_SERVICE_ACCOUNT_FILE или GOOGLE_SERVICE_ACCOUNT_JSON в .env"}
+        return {"ok": False, "error": "Не удалось создать Google Calendar клиент. Проверь логи сервера."}
+    try:
+        result = svc.calendarList().list().execute()
+        calendars = [{"id": c["id"], "summary": c.get("summary", "")} for c in result.get("items", [])]
+        try:
+            svc.calendars().get(calendarId=settings.calendar_id).execute()
+            calendar_ok = True
+            calendar_error = None
+        except Exception as e:
+            calendar_ok = False
+            calendar_error = str(e)
+        return {
+            "ok": calendar_ok,
+            "calendar_id": settings.calendar_id,
+            "calendar_error": calendar_error,
+            "available_calendars": calendars,
+            "hint": "Если calendar_ok=False — поделись нужным календарём с сервисным аккаунтом и укажи его ID в .env",
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
