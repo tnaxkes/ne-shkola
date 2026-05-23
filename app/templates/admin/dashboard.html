@@ -1,0 +1,150 @@
+{% extends "admin/base.html" %}
+{% block title %}Дашборд{% endblock %}
+{% block page_title %}Дашборд{% endblock %}
+
+{% block content %}
+<!-- Stats widgets -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="stat-icon bg-warning-subtle rounded-3 p-3 me-3">
+            <i class="bi bi-hourglass-split text-warning fs-4"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ count_new }}</div>
+            <div class="stat-label text-muted small">Новые заявки</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="stat-icon bg-primary-subtle rounded-3 p-3 me-3">
+            <i class="bi bi-calendar-day text-primary fs-4"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ count_today }}</div>
+            <div class="stat-label text-muted small">Сегодня</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="stat-icon bg-info-subtle rounded-3 p-3 me-3">
+            <i class="bi bi-calendar-week text-info fs-4"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ count_tomorrow }}</div>
+            <div class="stat-label text-muted small">Завтра</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center">
+          <div class="stat-icon bg-success-subtle rounded-3 p-3 me-3">
+            <i class="bi bi-check2-circle text-success fs-4"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ count_active }}</div>
+            <div class="stat-label text-muted small">Всего активных</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New bookings -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-bell me-2 text-warning"></i>Новые заявки</h6>
+    <a href="/admin/bookings?filter_status=new" class="btn btn-sm btn-outline-secondary">Все</a>
+  </div>
+  <div class="card-body p-0">
+    {% if new_bookings %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th><th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in new_bookings %}
+          <tr>
+            <td><a href="/admin/bookings/{{ b.id }}" class="text-decoration-none text-muted">#{{ b.id }}</a></td>
+            <td>
+              <a href="/admin/clients/{{ b.client.id }}" class="text-decoration-none fw-medium">{{ b.client.name }}</a>
+              <div class="text-muted small">{{ b.client.phone }}</div>
+            </td>
+            <td>{{ b.service.name }}</td>
+            <td>{{ b.master.name if b.master else '—' }}</td>
+            <td>{{ b.desired_date | date_ru }}</td>
+            <td>{{ b.desired_time.strftime('%H:%M') }}</td>
+            <td>
+              <form method="post" action="/admin/bookings/{{ b.id }}/status" class="d-inline">
+                <input type="hidden" name="new_status" value="confirmed"/>
+                <button type="submit" class="btn btn-sm btn-success me-1">✓ Подтв.</button>
+              </form>
+              <form method="post" action="/admin/bookings/{{ b.id }}/status" class="d-inline">
+                <input type="hidden" name="new_status" value="cancelled"/>
+                <button type="submit" class="btn btn-sm btn-outline-danger">✕</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">Новых заявок нет</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Upcoming confirmed -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white d-flex align-items-center justify-content-between py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar-check me-2 text-success"></i>Предстоящие занятия</h6>
+    <a href="/admin/bookings?filter_status=confirmed" class="btn btn-sm btn-outline-secondary">Все</a>
+  </div>
+  <div class="card-body p-0">
+    {% if upcoming %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th></tr>
+        </thead>
+        <tbody>
+          {% for b in upcoming %}
+          <tr>
+            <td><a href="/admin/bookings/{{ b.id }}" class="text-decoration-none text-muted">#{{ b.id }}</a></td>
+            <td><a href="/admin/clients/{{ b.client.id }}" class="text-decoration-none fw-medium">{{ b.client.name }}</a></td>
+            <td>{{ b.service.name }}</td>
+            <td>{{ b.master.name if b.master else '—' }}</td>
+            <td>{{ b.desired_date | date_ru }}</td>
+            <td>{{ b.desired_time.strftime('%H:%M') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-4">Подтверждённых занятий нет</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

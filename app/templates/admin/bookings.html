@@ -1,0 +1,127 @@
+{% extends "admin/base.html" %}
+{% block title %}Записи{% endblock %}
+{% block page_title %}Все записи{% endblock %}
+
+{% block content %}
+<!-- Filters -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form method="get" action="/admin/bookings" class="row g-2 align-items-end">
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Дата</label>
+        <input type="date" name="filter_date" class="form-control form-control-sm" value="{{ filter_date }}"/>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Статус</label>
+        <select name="filter_status" class="form-select form-select-sm">
+          <option value="">Все статусы</option>
+          {% for s in statuses %}
+          <option value="{{ s.value }}" {% if filter_status == s.value %}selected{% endif %}>{{ s.value | booking_status_label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Преподаватель</label>
+        <select name="filter_master" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for m in masters %}
+          <option value="{{ m.id }}" {% if filter_master == m.id %}selected{% endif %}>{{ m.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Программа</label>
+        <select name="filter_service" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for s in services %}
+          <option value="{{ s.id }}" {% if filter_service == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label small text-muted">Поиск</label>
+        <input type="text" name="search" class="form-control form-control-sm" placeholder="Имя или телефон" value="{{ search }}"/>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary flex-grow-1">Применить</button>
+        <a href="/admin/bookings" class="btn btn-sm btn-outline-secondary">✕</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Day schedule -->
+{% if day_schedule %}
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-clock me-2"></i>Расписание на {{ selected_date | date_ru }}</h6>
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      {% for master_name, blist in day_schedule.items() %}
+      <div class="col-md-4">
+        <div class="border rounded p-3">
+          <div class="fw-semibold mb-2"><i class="bi bi-person-badge me-1"></i>{{ master_name }}</div>
+          {% for b in blist %}
+          <div class="d-flex align-items-center mb-1">
+            <span class="badge bg-{{ b.status.value | booking_status_class }} me-2">{{ b.desired_time.strftime('%H:%M') }}</span>
+            <a href="/admin/bookings/{{ b.id }}" class="text-decoration-none small">{{ b.service.name }} — {{ b.client.name }}</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Bookings table -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+    <h6 class="mb-0 fw-semibold">Записи <span class="badge bg-secondary">{{ bookings | length }}</span></h6>
+  </div>
+  <div class="card-body p-0">
+    {% if bookings %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th>
+            <th>Дата</th><th>Время</th><th>Статус</th><th>Действие</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in bookings %}
+          <tr>
+            <td><a href="/admin/bookings/{{ b.id }}" class="text-decoration-none text-muted">#{{ b.id }}</a></td>
+            <td>
+              <a href="/admin/clients/{{ b.client.id }}" class="text-decoration-none fw-medium">{{ b.client.name }}</a>
+              <div class="text-muted small">{{ b.client.phone }}</div>
+            </td>
+            <td>{{ b.service.name }}</td>
+            <td>{{ b.master.name if b.master else '—' }}</td>
+            <td>{{ b.desired_date | date_ru }}</td>
+            <td>{{ b.desired_time.strftime('%H:%M') }}</td>
+            <td><span class="badge bg-{{ b.status.value | booking_status_class }}">{{ b.status.value | booking_status_label }}</span></td>
+            <td>
+              <form method="post" action="/admin/bookings/{{ b.id }}/status" class="d-flex gap-1">
+                <select name="new_status" class="form-select form-select-sm" style="width:140px">
+                  {% for s in statuses %}
+                  <option value="{{ s.value }}" {% if b.status == s %}selected{% endif %}>{{ s.value | booking_status_label }}</option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-primary">✓</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">Записей не найдено</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

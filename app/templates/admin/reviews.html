@@ -1,0 +1,58 @@
+{% extends "admin/base.html" %}
+{% block title %}Отзывы{% endblock %}
+{% block page_title %}Отзывы{% endblock %}
+
+{% block content %}
+{% if avg_rating %}
+<div class="alert border-0 shadow-sm mb-4 d-flex align-items-center gap-3" style="background:#fffbeb">
+  <div class="fs-2 fw-bold text-warning">⭐ {{ avg_rating }}</div>
+  <div class="text-muted">Средняя оценка по всем отзывам ({{ reviews | length }} шт.)</div>
+</div>
+{% endif %}
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3">
+    <h6 class="mb-0 fw-semibold">Все отзывы <span class="badge bg-secondary">{{ reviews | length }}</span></h6>
+  </div>
+  <div class="card-body p-0">
+    {% if reviews %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Оценка</th><th>Клиент</th><th>Программа</th><th>Преподаватель</th><th>Отзыв</th><th>Дата</th></tr>
+        </thead>
+        <tbody>
+          {% for r in reviews %}
+          <tr>
+            <td>
+              {% for i in range(5) %}
+                {% if i < r.rating %}
+                  <i class="bi bi-star-fill text-warning"></i>
+                {% else %}
+                  <i class="bi bi-star text-muted"></i>
+                {% endif %}
+              {% endfor %}
+            </td>
+            <td>
+              <a href="/admin/clients/{{ r.booking.client.id }}" class="text-decoration-none fw-medium">
+                {{ r.booking.client.name }}
+              </a>
+            </td>
+            <td>{{ r.booking.service.name }}</td>
+            <td>{{ r.booking.master.name if r.booking.master else '—' }}</td>
+            <td class="text-muted" style="max-width:300px">{{ r.comment or '—' }}</td>
+            <td class="text-muted small">{{ r.created_at | datetime_ru }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-star fs-1 d-block mb-2"></i>
+      Отзывов пока нет
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

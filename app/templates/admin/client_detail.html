@@ -1,0 +1,88 @@
+{% extends "admin/base.html" %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block page_title %}Клиент: {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-person-circle me-2"></i>Профиль</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-5 text-muted">Имя</dt>
+          <dd class="col-7">{{ client.name }}</dd>
+          <dt class="col-5 text-muted">Телефон</dt>
+          <dd class="col-7">{{ client.phone }}</dd>
+          <dt class="col-5 text-muted">Telegram</dt>
+          <dd class="col-7">{{ client.telegram_user_id or '—' }}</dd>
+          <dt class="col-5 text-muted">Визитов</dt>
+          <dd class="col-7"><span class="badge bg-primary-subtle text-primary fs-6">{{ client.visits_count }}</span></dd>
+          <dt class="col-5 text-muted">С нами с</dt>
+          <dd class="col-7 small">{{ client.first_seen_at | datetime_ru }}</dd>
+          <dt class="col-5 text-muted">Последний</dt>
+          <dd class="col-7 small">{{ client.last_seen_at | datetime_ru }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div class="row g-2">
+      <div class="col-6">
+        <div class="card border-0 shadow-sm text-center p-3">
+          <div class="fw-bold fs-3 text-primary">{{ bookings | length }}</div>
+          <div class="text-muted small">Записей</div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card border-0 shadow-sm text-center p-3">
+          <div class="fw-bold fs-3 text-success">{{ total_spent }} ₽</div>
+          <div class="text-muted small">Потрачено</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <a href="/admin/clients" class="btn btn-outline-secondary w-100">← Все клиенты</a>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar3 me-2"></i>История записей</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if bookings %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr><th>#</th><th>Программа</th><th>Преподаватель</th><th>Дата</th><th>Время</th><th>Статус</th><th>Отзыв</th></tr>
+            </thead>
+            <tbody>
+              {% for b in bookings %}
+              <tr>
+                <td><a href="/admin/bookings/{{ b.id }}" class="text-decoration-none text-muted">#{{ b.id }}</a></td>
+                <td>{{ b.service.name }}</td>
+                <td>{{ b.master.name if b.master else '—' }}</td>
+                <td>{{ b.desired_date | date_ru }}</td>
+                <td>{{ b.desired_time.strftime('%H:%M') }}</td>
+                <td><span class="badge bg-{{ b.status.value | booking_status_class }}">{{ b.status.value | booking_status_label }}</span></td>
+                <td>
+                  {% if b.review %}
+                    {% for i in range(b.review.rating) %}<i class="bi bi-star-fill text-warning small"></i>{% endfor %}
+                  {% else %}—{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5">Записей нет</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

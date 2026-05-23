@@ -1,0 +1,105 @@
+{% extends "admin/base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block page_title %}Настройки системы{% endblock %}
+
+{% block content %}
+<div class="alert alert-info border-0 shadow-sm mb-4">
+  <i class="bi bi-info-circle me-2"></i>
+  Настройки доступны только для чтения. Для изменения отредактируйте файл <strong>.env</strong> и перезапустите сервер.
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-building me-2"></i>Школа</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-5 text-muted">Название</dt><dd class="col-7">{{ settings.salon_name }}</dd>
+          <dt class="col-5 text-muted">Адрес</dt><dd class="col-7">{{ settings.salon_address }}</dd>
+          <dt class="col-5 text-muted">Телефон</dt><dd class="col-7">{{ settings.salon_phone }}</dd>
+          <dt class="col-5 text-muted">Контакты</dt><dd class="col-7">{{ settings.salon_contacts }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-clock me-2"></i>Расписание</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-6 text-muted">Начало рабочего дня</dt><dd class="col-6">{{ settings.workday_start }}</dd>
+          <dt class="col-6 text-muted">Конец рабочего дня</dt><dd class="col-6">{{ settings.workday_end }}</dd>
+          <dt class="col-6 text-muted">Шаг слотов</dt><dd class="col-6">{{ settings.slot_step_minutes }} мин</dd>
+          <dt class="col-6 text-muted">Часовой пояс</dt><dd class="col-6">{{ settings.app_timezone }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-telegram me-2"></i>Telegram</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-6 text-muted">Bot Token</dt>
+          <dd class="col-6">
+            {% if settings.telegram_bot_token %}
+            <span class="badge bg-success-subtle text-success">✓ Задан</span>
+            {% else %}
+            <span class="badge bg-danger-subtle text-danger">✗ Не задан</span>
+            {% endif %}
+          </dd>
+          <dt class="col-6 text-muted">Chat ID администратора</dt>
+          <dd class="col-6">{{ settings.admin_telegram_chat_id or '—' }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-calendar2 me-2"></i>Google Calendar</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-6 text-muted">Сервисный аккаунт</dt>
+          <dd class="col-6">
+            {% if settings.google_service_account_file %}
+            <span class="badge bg-success-subtle text-success">✓ Задан</span>
+            {% else %}
+            <span class="badge bg-secondary-subtle text-secondary">Не задан</span>
+            {% endif %}
+          </dd>
+          <dt class="col-6 text-muted">Calendar ID</dt>
+          <dd class="col-6">{{ settings.calendar_id }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-server me-2"></i>Приложение</h6>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-5 text-muted">URL</dt><dd class="col-7">{{ settings.app_url }}</dd>
+          <dt class="col-5 text-muted">Окружение</dt><dd class="col-7">{{ settings.app_env }}</dd>
+          <dt class="col-5 text-muted">База данных</dt><dd class="col-7 text-truncate" title="{{ settings.database_url }}">{{ settings.database_url }}</dd>
+          <dt class="col-5 text-muted">Seed при старте</dt>
+          <dd class="col-7">{{ '✓ Да' if settings.seed_on_startup else '✗ Нет' }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

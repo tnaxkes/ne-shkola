@@ -1,0 +1,102 @@
+{% extends "admin/base.html" %}
+{% block title %}Рассылки{% endblock %}
+{% block page_title %}Рассылки{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <!-- Create broadcast -->
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-megaphone me-2"></i>Новая рассылка</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/admin/broadcasts/create">
+          <div class="mb-3">
+            <label class="form-label">Заголовок (внутренний)</label>
+            <input type="text" name="title" class="form-control" placeholder="Для себя" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Текст сообщения</label>
+            <textarea name="message_text" class="form-control" rows="5" placeholder="Привет! У нас..." required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">URL картинки (необязательно)</label>
+            <input type="url" name="image_url" class="form-control" placeholder="https://..."/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Аудитория</label>
+            <select name="audience_type" class="form-select" required>
+              <optgroup label="Общие">
+                <option value="all">Все клиенты</option>
+                <option value="new_clients">Новые (1 визит)</option>
+                <option value="regular_clients">Постоянные (3+ визита)</option>
+                <option value="inactive_clients">Неактивные (60+ дней)</option>
+              </optgroup>
+              {% if services %}
+              <optgroup label="По программе">
+                {% for s in services %}
+                <option value="service:{{ s.id }}">{{ s.name }}</option>
+                {% endfor %}
+              </optgroup>
+              {% endif %}
+              {% if masters %}
+              <optgroup label="По преподавателю">
+                {% for m in masters %}
+                <option value="master:{{ m.id }}">{{ m.name }}</option>
+                {% endfor %}
+              </optgroup>
+              {% endif %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Создать черновик</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Broadcasts list -->
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">История рассылок</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if broadcasts %}
+        <ul class="list-group list-group-flush">
+          {% for b in broadcasts %}
+          <li class="list-group-item">
+            <div class="d-flex align-items-start justify-content-between">
+              <div class="flex-grow-1">
+                <div class="fw-semibold">{{ b.title }}</div>
+                <div class="text-muted small mb-1">{{ b.message_text[:80] }}{% if b.message_text|length > 80 %}…{% endif %}</div>
+                <div class="d-flex gap-2 align-items-center">
+                  <span class="badge bg-{{ 'success' if b.status.value == 'sent' else ('warning' if b.status.value == 'sending' else 'secondary') }}-subtle
+                    text-{{ 'success' if b.status.value == 'sent' else ('warning' if b.status.value == 'sending' else 'secondary') }}">
+                    {{ {'draft':'Черновик','sending':'Отправляется','sent':'Отправлено'}.get(b.status.value, b.status.value) }}
+                  </span>
+                  <span class="text-muted small">{{ b.audience_type }}</span>
+                  {% if b.sent_at %}
+                  <span class="text-muted small">{{ b.sent_at | datetime_ru }}</span>
+                  {% endif %}
+                </div>
+              </div>
+              {% if b.status.value == 'draft' %}
+              <form method="post" action="/admin/broadcasts/{{ b.id }}/send" class="ms-2">
+                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Отправить рассылку?')">
+                  <i class="bi bi-send me-1"></i>Отправить
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-center text-muted py-5">Рассылок ещё не создавалось</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

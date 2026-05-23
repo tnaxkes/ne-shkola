@@ -1,0 +1,79 @@
+/* ── Layout ─────────────────────────────────────────────────────────── */
+#wrapper { min-height: 100vh; }
+
+#sidebar {
+  width: 240px;
+  min-height: 100vh;
+  background: #1a1f2e;
+  transition: width 0.2s ease;
+  flex-shrink: 0;
+}
+
+#sidebar .nav-link {
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 2px;
+  font-size: 0.875rem;
+  transition: background 0.15s;
+}
+
+#sidebar .nav-link:hover  { background: rgba(255,255,255,0.08); }
+#sidebar .nav-link.active { background: rgba(255,255,255,0.15); font-weight: 600; }
+
+#page-content { overflow-x: auto; }
+
+.topbar {
+  height: 52px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* sidebar-collapsed */
+#wrapper.sidebar-collapsed #sidebar { width: 60px; }
+#wrapper.sidebar-collapsed #sidebar span,
+#wrapper.sidebar-collapsed #sidebar hr,
+#wrapper.sidebar-collapsed #sidebar .nav-link { overflow: hidden; white-space: nowrap; }
+#wrapper.sidebar-collapsed #sidebar .nav-link { padding: 8px; justify-content: center; }
+#wrapper.sidebar-collapsed #sidebar .fs-6 { display: none; }
+
+/* ── Cards / Stats ──────────────────────────────────────────────────── */
+.stat-card { transition: transform 0.15s, box-shadow 0.15s; }
+.stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important; }
+
+.stat-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+.stat-label { margin-top: 2px; }
+
+.stat-icon { width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; }
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
+.table th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: .03em; color: #6c757d; font-weight: 600; }
+.table td { font-size: 0.875rem; }
+
+/* ── Avatar circle ──────────────────────────────────────────────────── */
+.avatar-circle {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.1rem; flex-shrink: 0;
+}
+
+/* ── Misc ───────────────────────────────────────────────────────────── */
+.card-header { border-bottom: 1px solid #f0f0f0; }
+
+.badge { font-weight: 500; }
+
+/* subtle badge variants */
+.bg-warning-subtle  { background-color: #fff3cd !important; }
+.bg-success-subtle  { background-color: #d1e7dd !important; }
+.bg-danger-subtle   { background-color: #f8d7da !important; }
+.bg-primary-subtle  { background-color: #cfe2ff !important; }
+.bg-info-subtle     { background-color: #cff4fc !important; }
+.bg-secondary-subtle{ background-color: #e2e3e5 !important; }
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #sidebar { width: 60px; }
+  #sidebar .nav-link span,
+  #sidebar .fs-6,
+  #sidebar hr { display: none; }
+}

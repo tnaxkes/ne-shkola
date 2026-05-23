@@ -1,0 +1,135 @@
+{% extends "admin/base.html" %}
+{% block title %}Программы{% endblock %}
+{% block page_title %}Управление программами{% endblock %}
+
+{% block content %}
+<!-- Add service -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-plus-circle me-2"></i>Добавить программу</h6>
+  </div>
+  <div class="card-body">
+    <form method="post" action="/admin/services/create" class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label small text-muted">Категория</label>
+        <input type="text" name="category" class="form-control form-control-sm" placeholder="Индивидуальные занятия" required/>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-muted">Название</label>
+        <input type="text" name="name" class="form-control form-control-sm" placeholder="Название" required/>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small text-muted">Цена ₽</label>
+        <input type="number" name="price" class="form-control form-control-sm" required/>
+      </div>
+      <div class="col-md-1">
+        <label class="form-label small text-muted">Мин.</label>
+        <input type="number" name="duration" class="form-control form-control-sm" value="60" required/>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label small text-muted">Описание</label>
+        <input type="text" name="description" class="form-control form-control-sm" placeholder="Краткое описание"/>
+      </div>
+      <div class="col-md-1 d-flex align-items-end gap-2">
+        <div class="form-check mt-1">
+          <input class="form-check-input" type="checkbox" name="is_active" id="newActive" checked/>
+          <label class="form-check-label small" for="newActive">Акт.</label>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary">+</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Services list grouped by category -->
+{% set categories = services | map(attribute='category') | unique | list %}
+{% for cat in categories %}
+<div class="card border-0 shadow-sm mb-3">
+  <div class="card-header bg-white py-2">
+    <h6 class="mb-0 text-primary fw-semibold">{{ cat }}</h6>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Название</th><th>Цена</th><th>Длит.</th><th>Описание</th><th>Статус</th><th>Действия</th></tr>
+        </thead>
+        <tbody>
+          {% for s in services if s.category == cat %}
+          <tr>
+            <td class="fw-medium">{{ s.name }}</td>
+            <td>{{ s.price }} ₽</td>
+            <td>{{ s.duration }} мин</td>
+            <td class="text-muted small" style="max-width:300px">{{ s.description or '—' }}</td>
+            <td>
+              {% if s.is_active %}
+              <span class="badge bg-success-subtle text-success">Активна</span>
+              {% else %}
+              <span class="badge bg-secondary-subtle text-secondary">Скрыта</span>
+              {% endif %}
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-secondary me-1" data-bs-toggle="modal" data-bs-target="#editModal{{ s.id }}">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <form method="post" action="/admin/services/{{ s.id }}/toggle" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if s.is_active else 'success' }}">
+                  {{ '👁 Скрыть' if s.is_active else '👁 Показать' }}
+                </button>
+              </form>
+            </td>
+          </tr>
+
+          <!-- Edit Modal -->
+          <div class="modal fade" id="editModal{{ s.id }}" tabindex="-1">
+            <div class="modal-dialog">
+              <div class="modal-content">
+                <form method="post" action="/admin/services/{{ s.id }}/edit">
+                  <div class="modal-header">
+                    <h5 class="modal-title">Редактировать программу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div class="mb-3">
+                      <label class="form-label">Категория</label>
+                      <input type="text" name="category" class="form-control" value="{{ s.category }}" required/>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Название</label>
+                      <input type="text" name="name" class="form-control" value="{{ s.name }}" required/>
+                    </div>
+                    <div class="row g-2 mb-3">
+                      <div class="col">
+                        <label class="form-label">Цена ₽</label>
+                        <input type="number" name="price" class="form-control" value="{{ s.price }}" required/>
+                      </div>
+                      <div class="col">
+                        <label class="form-label">Длит. (мин)</label>
+                        <input type="number" name="duration" class="form-control" value="{{ s.duration }}" required/>
+                      </div>
+                    </div>
+                    <div class="mb-3">
+                      <label class="form-label">Описание</label>
+                      <textarea name="description" class="form-control" rows="3">{{ s.description or '' }}</textarea>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="is_active" id="active{{ s.id }}" {% if s.is_active %}checked{% endif %}/>
+                      <label class="form-check-label" for="active{{ s.id }}">Активна</label>
+                    </div>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+pydantic-settings
+python-dotenv
+aiogram>=3.0
+httpx
+jinja2
+python-multipart
+itsdangerous
+google-api-python-client
+google-auth
+google-auth-httplib2
+# PostgreSQL driver (needed on Vercel; ignored when using SQLite locally)
+psycopg2-binary

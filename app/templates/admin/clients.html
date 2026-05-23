@@ -1,0 +1,44 @@
+{% extends "admin/base.html" %}
+{% block title %}Клиенты{% endblock %}
+{% block page_title %}Клиенты{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+    <h6 class="mb-0 fw-semibold">Клиенты <span class="badge bg-secondary">{{ clients | length }}</span></h6>
+  </div>
+  <div class="card-body p-0">
+    {% if clients %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>#</th><th>Имя</th><th>Телефон</th><th>Telegram</th>
+            <th>Визитов</th><th>Первый визит</th><th>Последний визит</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in clients %}
+          <tr>
+            <td class="text-muted">#{{ c.id }}</td>
+            <td><a href="/admin/clients/{{ c.id }}" class="text-decoration-none fw-medium">{{ c.name }}</a></td>
+            <td>{{ c.phone }}</td>
+            <td>
+              {% if c.telegram_user_id %}
+              <span class="badge bg-info-subtle text-info"><i class="bi bi-telegram me-1"></i>{{ c.telegram_user_id }}</span>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="badge bg-primary-subtle text-primary">{{ c.visits_count }}</span></td>
+            <td class="text-muted small">{{ c.first_seen_at | datetime_ru }}</td>
+            <td class="text-muted small">{{ c.last_seen_at | datetime_ru }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-5">Клиентов пока нет</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

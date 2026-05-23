@@ -1,0 +1,100 @@
+{% extends "admin/base.html" %}
+{% block title %}Запись #{{ booking.id }}{% endblock %}
+{% block page_title %}Запись #{{ booking.id }}{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-md-7">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3 d-flex align-items-center justify-content-between">
+        <h6 class="mb-0 fw-semibold">Детали записи</h6>
+        <span class="badge bg-{{ booking.status.value | booking_status_class }} fs-6">{{ booking.status.value | booking_status_label }}</span>
+      </div>
+      <div class="card-body">
+        <dl class="row mb-0">
+          <dt class="col-sm-4 text-muted">Программа</dt>
+          <dd class="col-sm-8">{{ booking.service.name }}</dd>
+          <dt class="col-sm-4 text-muted">Категория</dt>
+          <dd class="col-sm-8">{{ booking.service.category }}</dd>
+          <dt class="col-sm-4 text-muted">Стоимость</dt>
+          <dd class="col-sm-8">{{ booking.service.price }} ₽</dd>
+          <dt class="col-sm-4 text-muted">Длительность</dt>
+          <dd class="col-sm-8">{{ booking.service.duration }} мин</dd>
+          <dt class="col-sm-4 text-muted">Преподаватель</dt>
+          <dd class="col-sm-8">{{ booking.master.name if booking.master else '—' }}</dd>
+          <dt class="col-sm-4 text-muted">Дата</dt>
+          <dd class="col-sm-8">{{ booking.desired_date | date_ru }}</dd>
+          <dt class="col-sm-4 text-muted">Время</dt>
+          <dd class="col-sm-8">{{ booking.desired_time.strftime('%H:%M') }}</dd>
+          <dt class="col-sm-4 text-muted">Комментарий</dt>
+          <dd class="col-sm-8">{{ booking.comment or '—' }}</dd>
+          <dt class="col-sm-4 text-muted">Создана</dt>
+          <dd class="col-sm-8">{{ booking.created_at | datetime_ru }}</dd>
+        </dl>
+      </div>
+    </div>
+
+    {% if booking.review %}
+    <div class="card border-0 shadow-sm mt-3">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-star me-2 text-warning"></i>Отзыв</h6>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          {% for i in range(5) %}
+            {% if i < booking.review.rating %}<i class="bi bi-star-fill text-warning"></i>{% else %}<i class="bi bi-star text-muted"></i>{% endif %}
+          {% endfor %}
+          <span class="ms-2 fw-semibold">{{ booking.review.rating }}/5</span>
+        </div>
+        <p class="mb-0 text-muted">{{ booking.review.comment or 'Без комментария' }}</p>
+        <small class="text-muted">{{ booking.review.created_at | datetime_ru }}</small>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-5">
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-person me-2"></i>Клиент</h6>
+      </div>
+      <div class="card-body">
+        <div class="fw-semibold mb-1">
+          <a href="/admin/clients/{{ booking.client.id }}" class="text-decoration-none">{{ booking.client.name }}</a>
+        </div>
+        <div class="text-muted">{{ booking.client.phone }}</div>
+        {% if booking.client.telegram_user_id %}
+        <div class="text-muted small mt-1"><i class="bi bi-telegram me-1"></i>TG ID: {{ booking.client.telegram_user_id }}</div>
+        {% endif %}
+        <div class="text-muted small mt-1">Визитов: {{ booking.client.visits_count }}</div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-arrow-repeat me-2"></i>Изменить статус</h6>
+      </div>
+      <div class="card-body">
+        <form method="post" action="/admin/bookings/{{ booking.id }}/status">
+          <div class="mb-3">
+            <select name="new_status" class="form-select">
+              {% for s in statuses %}
+              <option value="{{ s.value }}" {% if booking.status == s %}selected{% endif %}>{{ s.value | booking_status_label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Сохранить статус</button>
+        </form>
+        <div class="mt-2 text-muted small">
+          При смене на «Подтверждена» — клиент получит уведомление в Telegram.<br/>
+          При смене на «Завершена» — клиент получит запрос на отзыв.
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3">
+      <a href="/admin/bookings" class="btn btn-outline-secondary w-100">← Назад к записям</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

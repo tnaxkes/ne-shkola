@@ -1,0 +1,190 @@
+{% extends "admin/base.html" %}
+{% block title %}Аналитика{% endblock %}
+{% block page_title %}Аналитика{% endblock %}
+
+{% block content %}
+<!-- Period selector -->
+<div class="d-flex gap-2 mb-4">
+  {% for p, label in [('today','Сегодня'),('yesterday','Вчера'),('week','Неделя'),('month','Месяц')] %}
+  <a href="/admin/analytics?period={{ p }}"
+     class="btn btn-sm {{ 'btn-primary' if period == p else 'btn-outline-secondary' }}">{{ label }}</a>
+  {% endfor %}
+  <span class="text-muted small align-self-center ms-2">{{ start | date_ru }}{% if start != end %} — {{ end | date_ru }}{% endif %}</span>
+</div>
+
+<!-- Main stats -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fw-bold fs-2 text-primary">{{ total }}</div>
+      <div class="text-muted small">Всего записей</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fw-bold fs-2 text-success">{{ revenue_fact }} ₽</div>
+      <div class="text-muted small">Выручка (факт)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fw-bold fs-2 text-info">{{ revenue_plan }} ₽</div>
+      <div class="text-muted small">Выручка (план)</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card border-0 shadow-sm text-center p-3">
+      <div class="fw-bold fs-2 text-warning">{{ avg_check }} ₽</div>
+      <div class="text-muted small">Средний чек</div>
+    </div>
+  </div>
+</div>
+
+<!-- Detailed stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">По статусам</h6>
+      </div>
+      <div class="card-body">
+        {% for status, label in [('new','Новые'),('confirmed','Подтверждены'),('completed','Завершены'),('cancelled','Отменены')] %}
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="badge bg-{{ status | booking_status_class }}">{{ label }}</span>
+          <span class="fw-semibold">{{ by_status.get(status, 0) }}</span>
+        </div>
+        {% endfor %}
+        <hr/>
+        <div class="d-flex justify-content-between text-muted small">
+          <span>% отмен</span><span class="fw-semibold text-danger">{{ cancel_pct }}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">Клиенты</h6>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Новых за период</span>
+          <span class="fw-semibold text-success">{{ new_clients }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="text-muted">Повторных (всего)</span>
+          <span class="fw-semibold text-primary">{{ repeat_clients }}</span>
+        </div>
+        {% if avg_rating %}
+        <hr/>
+        <div class="d-flex justify-content-between">
+          <span class="text-muted">Средняя оценка</span>
+          <span class="fw-semibold text-warning">
+            ⭐ {{ avg_rating }}
+          </span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">Нагрузка по дням недели</h6>
+      </div>
+      <div class="card-body">
+        {% for day, cnt in load_by_day %}
+        <div class="d-flex align-items-center mb-1">
+          <span class="text-muted small" style="width:28px">{{ day }}</span>
+          <div class="flex-grow-1 mx-2">
+            <div class="progress" style="height:14px">
+              {% set max_cnt = load_by_day | map(attribute=1) | max %}
+              <div class="progress-bar bg-primary" style="width:{{ ((cnt / max_cnt * 100) if max_cnt > 0 else 0) | int }}%"></div>
+            </div>
+          </div>
+          <span class="small fw-semibold" style="width:20px">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Top lists -->
+<div class="row g-4 mb-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">Топ-5 преподавателей</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if top_masters %}
+        <ul class="list-group list-group-flush">
+          {% for name, cnt in top_masters %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ name }}</span>
+            <span class="badge bg-primary rounded-pill">{{ cnt }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-muted small text-center py-3">Нет данных</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white py-3">
+        <h6 class="mb-0 fw-semibold">Топ-5 программ</h6>
+      </div>
+      <div class="card-body p-0">
+        {% if top_services %}
+        <ul class="list-group list-group-flush">
+          {% for name, cnt in top_services %}
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>{{ name }}</span>
+            <span class="badge bg-success rounded-pill">{{ cnt }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <div class="text-muted small text-center py-3">Нет данных</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent reviews -->
+{% if reviews %}
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white py-3">
+    <h6 class="mb-0 fw-semibold"><i class="bi bi-star me-2 text-warning"></i>Последние отзывы</h6>
+  </div>
+  <div class="card-body p-0">
+    <ul class="list-group list-group-flush">
+      {% for r in reviews %}
+      <li class="list-group-item">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <div class="mb-1">
+              {% for i in range(5) %}
+                {% if i < r.rating %}<i class="bi bi-star-fill text-warning small"></i>
+                {% else %}<i class="bi bi-star text-muted small"></i>{% endif %}
+              {% endfor %}
+            </div>
+            <div class="text-muted small">{{ r.comment or 'Без комментария' }}</div>
+            <div class="text-muted" style="font-size:0.75rem">{{ r.booking.client.name }} — {{ r.booking.service.name }}</div>
+          </div>
+          <div class="text-muted small">{{ r.created_at | datetime_ru }}</div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

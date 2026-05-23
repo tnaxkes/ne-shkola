@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>{% block title %}Админ{% endblock %} — {{ salon_name }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet"/>
+  <link rel="stylesheet" href="/static/styles.css"/>
+</head>
+<body>
+
+<div class="d-flex" id="wrapper">
+  <!-- Sidebar -->
+  <nav id="sidebar" class="d-flex flex-column flex-shrink-0 p-3 text-white">
+    <a href="/admin" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto text-white text-decoration-none">
+      <i class="bi bi-music-note-beamed fs-4 me-2"></i>
+      <span class="fs-6 fw-semibold">{{ salon_name }}</span>
+    </a>
+    <hr/>
+    <ul class="nav nav-pills flex-column mb-auto">
+      <li class="nav-item">
+        <a href="/admin" class="nav-link text-white {% if request.url.path == '/admin' or request.url.path == '/admin/' %}active{% endif %}">
+          <i class="bi bi-speedometer2 me-2"></i>Дашборд
+        </a>
+      </li>
+      <li>
+        <a href="/admin/bookings" class="nav-link text-white {% if '/admin/bookings' in request.url.path %}active{% endif %}">
+          <i class="bi bi-calendar-check me-2"></i>Записи
+        </a>
+      </li>
+      <li>
+        <a href="/admin/clients" class="nav-link text-white {% if '/admin/clients' in request.url.path %}active{% endif %}">
+          <i class="bi bi-people me-2"></i>Клиенты
+        </a>
+      </li>
+      <li>
+        <a href="/admin/services" class="nav-link text-white {% if '/admin/services' in request.url.path %}active{% endif %}">
+          <i class="bi bi-collection me-2"></i>Программы
+        </a>
+      </li>
+      <li>
+        <a href="/admin/masters" class="nav-link text-white {% if '/admin/masters' in request.url.path %}active{% endif %}">
+          <i class="bi bi-person-badge me-2"></i>Преподаватели
+        </a>
+      </li>
+      <li>
+        <a href="/admin/analytics" class="nav-link text-white {% if '/admin/analytics' in request.url.path %}active{% endif %}">
+          <i class="bi bi-bar-chart-line me-2"></i>Аналитика
+        </a>
+      </li>
+      <li>
+        <a href="/admin/broadcasts" class="nav-link text-white {% if '/admin/broadcasts' in request.url.path %}active{% endif %}">
+          <i class="bi bi-megaphone me-2"></i>Рассылки
+        </a>
+      </li>
+      <li>
+        <a href="/admin/reviews" class="nav-link text-white {% if '/admin/reviews' in request.url.path %}active{% endif %}">
+          <i class="bi bi-star me-2"></i>Отзывы
+        </a>
+      </li>
+      <li>
+        <a href="/admin/settings" class="nav-link text-white {% if '/admin/settings' in request.url.path %}active{% endif %}">
+          <i class="bi bi-gear me-2"></i>Настройки
+        </a>
+      </li>
+    </ul>
+    <hr/>
+    <a href="/admin/logout" class="nav-link text-white-50 px-0">
+      <i class="bi bi-box-arrow-left me-2"></i>Выйти
+    </a>
+  </nav>
+
+  <!-- Page content -->
+  <div id="page-content" class="flex-grow-1">
+    <header class="topbar d-flex align-items-center px-4 py-2 border-bottom bg-white shadow-sm">
+      <button class="btn btn-sm btn-outline-secondary me-3" id="sidebarToggle">
+        <i class="bi bi-list"></i>
+      </button>
+      <h6 class="mb-0 text-muted">{% block page_title %}{% endblock %}</h6>
+    </header>
+
+    <main class="p-4">
+      {% if flash_message %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+          {{ flash_message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+    document.getElementById('wrapper').classList.toggle('sidebar-collapsed');
+  });
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
